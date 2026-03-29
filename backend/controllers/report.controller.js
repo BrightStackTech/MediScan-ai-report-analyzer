@@ -40,31 +40,30 @@ const analyzeReport = async (req, res) => {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // First: Extract metadata (hospital name, date, and biomarkers)
-    const metadataPrompt = `Extract the following information from this medical report image:
+    const metadataPrompt = `Extract ALL information from this medical report image:
 
-1. Hospital/Diagnostic Center Name - look for names like "Apollo Diagnostics", "Shri Ram Hospital", etc.
-2. Report Date - look for fields like "Sample Received On", "Reported on", "Date of Report", "Report Date", etc. Return the date as shown in the image.
-3. Biomarker Table Data - Extract ALL biomarkers/tests from the report table with their:
-   - Test Name (e.g., "GLUCOSE, RANDOM", "UREA, SERUM", "CREATININE, SERUM")
-   - Result/Value (the numerical result)
-   - Unit (e.g., mg/dL, mmol/L)
-   - Bio. Ref. Range or Normal Range (the reference range)
-   - Method (if shown)
+1. Hospital/Diagnostic Center Name - find any hospital/lab name
+2. Report Date - find "Sample Received On", "Reported on", "Date of Report", return as shown
+3. ALL BIOMARKERS - Extract EVERY test from ANY table:
+   - Get ALL rows - do NOT omit any tests
+   - Include: Test Name, Result Value, Unit, Reference Range, Method (if shown)
 
-Return ONLY valid JSON with no additional text:
+Return ONLY valid JSON:
 {
-  "hospitalName": "extracted hospital name or null",
-  "reportDate": "extracted date or null",
+  "hospitalName": "hospital name or null",
+  "reportDate": "date or null",
   "biomarkers": [
     {
-      "name": "test name",
-      "value": "numerical result",
-      "unit": "unit",
-      "normalRange": "normal range",
-      "method": "method if available or null"
+      "name": "exact test name from table",
+      "value": "result value",
+      "unit": "measurement unit",
+      "normalRange": "reference range",
+      "method": "method name or null"
     }
   ]
-}`;
+}
+
+CRITICAL: Extract EVERY row from the table. Do NOT skip or filter any tests. Include duplicates if any.`;
 
     const metadataResult = await model.generateContent([
       metadataPrompt,
@@ -96,20 +95,37 @@ Return ONLY valid JSON with no additional text:
     }
 
     // Second: Generate summary
-    const summaryPrompt = `Please analyze this medical report and provide a SHORT, concise yet easy-to-understand summary. Keep it brief and focused. Follow these guidelines:
+    const summaryPrompt = `Please analyze this medical report. Generate a SHORT summary following THESE EXACT RULES:
 
-1. FIRST: Extract and identify the hospital/diagnostic center name from the report. Use it as the FIRST heading wrapped with XXXX markers (e.g., XXXX Apollo Diagnostics XXXX or XXXX Shri Ram Hospital XXXX)
-2. Immediately after the hospital name heading, extract and include the Report Date on the next line in format "Report Date: DD Month YYYY" (e.g., "Report Date: 11 June 2019"). Look for fields like "Sample Received On", "Reported on", "Date of Report" in the image.
-3. Then add other section headers using XXXX markers: "Most Important Findings and Diagnoses", "Key Findings and Recommendations"
-4. Break down medical terminology into simple language
-5. Organize information into clear sections as mentioned above
-6. Highlight any critical values or concerns that require immediate attention
-7. Include any recommended follow-up actions or lifestyle changes
-8. When mentioning test values, include the actual numerical results and reference ranges as shown in the report
+1. HOSPITAL HEADER: First line with XXXX markers (e.g., XXXX Shri Ram Hospital XXXX)
+2. REPORT DATE: Second line as "Report Date: DD Month YYYY"
 
-Keep the entire response SHORT and CONCISE - aim for 2-3 paragraphs maximum.
-DO NOT USE ANY ASTERISKS (*) OR MARKDOWN SYMBOLS IN RESPONSE - ONLY PLAIN TEXT
-Please ensure the summary is clear, concise, and actionable for someone without medical background.`;
+3. TWO SECTIONS with XXXX markers:
+   - XXXX Most Important Findings and Diagnoses XXXX
+   - XXXX Key Findings and Recommendations XXXX
+
+4. CRITICAL RULE - INCLUDE ALL MEDICAL NUMBERS:
+   - YOU MUST include EVERY numerical value from the report in the summary
+   - Format EXACTLY like: "Test Name is VALUE UNIT (normal: RANGE)"
+   - Examples: "Hemoglobin is 8.5 g/dL (normal: 12.0-16.0 g/dL)", "Platelet count is 6,16,000 lakhs/cumm (normal: 1.5-4.5 lakhs/cumm)"
+   - Include ALL measurements - do NOT skip any numbers
+   - Write as plain sentences, not lists
+   - Keep it readable
+
+5. ONLY IF NO NUMBERS FOUND: If the report contains NO numerical data, then just write a brief text summary without numbers.
+
+6. LENGTH: Keep to 2-3 short paragraphs maximum
+7. FORMAT: NO ASTERISKS, NO MARKDOWN - plain text only
+
+EXAMPLE OUTPUT:
+XXXX Apollo Hospital XXXX
+Report Date: 15 March 2024
+
+XXXX Most Important Findings and Diagnoses XXXX
+The patient shows severe anemia with Hemoglobin at 8.5 g/dL (normal: 12.0-16.0 g/dL). Red blood cell count is 3.81 millions/cumm (normal: 4.1-5.5 millions/cumm). Platelet count is elevated at 6,16,000 lakhs/cumm (normal: 1.5-4.5 lakhs/cumm).
+
+XXXX Key Findings and Recommendations XXXX
+Further evaluation is recommended...`;
 
     const summaryResult = await model.generateContent([
       summaryPrompt,

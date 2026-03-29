@@ -145,20 +145,20 @@ const ResultsPage = () => {
   // Parse biomarkers from summary text
   const parsedBiomarkers = parseBiomarkersFromSummary(summary);
 
-  // Use parsed biomarkers from summary if available, otherwise use extracted ones
+  // Use extracted biomarkers first (cleaner), then fall back to parsed ones
   const displayBiomarkers =
-    parsedBiomarkers.length > 0
-      ? [
-          {
-            category: "📋 Laboratory Results",
-            data: parsedBiomarkers,
-          },
-        ]
-      : extractedBiomarkers
+    extractedBiomarkers && extractedBiomarkers.length > 0
       ? [
           {
             category: "📋 Laboratory Results",
             data: extractedBiomarkers,
+          },
+        ]
+      : parsedBiomarkers.length > 0
+      ? [
+          {
+            category: "📋 Laboratory Results",
+            data: parsedBiomarkers,
           },
         ]
       : [];
