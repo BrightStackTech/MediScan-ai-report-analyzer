@@ -15,6 +15,7 @@ const analyzeReport = async (req, res) => {
     let summary = "";
     let hospitalName = null;
     let reportDate = null;
+    let biomarkers = null;
 
     // Process first file for analysis (analyze the primary report)
     const firstFile = req.files[0];
@@ -38,13 +39,31 @@ const analyzeReport = async (req, res) => {
     // Analyze with Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // First: Extract metadata (hospital name and date)
-    const metadataPrompt = `Extract the following information from this medical report image and return ONLY valid JSON. If information is not found, use null.
+    // First: Extract metadata (hospital name, date, and biomarkers)
+    const metadataPrompt = `Extract the following information from this medical report image:
 
-Return ONLY this JSON format, no other text:
+1. Hospital/Diagnostic Center Name - look for names like "Apollo Diagnostics", "Shri Ram Hospital", etc.
+2. Report Date - look for fields like "Sample Received On", "Reported on", "Date of Report", "Report Date", etc. Return the date as shown in the image.
+3. Biomarker Table Data - Extract ALL biomarkers/tests from the report table with their:
+   - Test Name (e.g., "GLUCOSE, RANDOM", "UREA, SERUM", "CREATININE, SERUM")
+   - Result/Value (the numerical result)
+   - Unit (e.g., mg/dL, mmol/L)
+   - Bio. Ref. Range or Normal Range (the reference range)
+   - Method (if shown)
+
+Return ONLY valid JSON with no additional text:
 {
-  "hospitalName": "extracted hospital/diagnostic center name or null",
-  "reportDate": "extracted report date in YYYY-MM-DD format or null"
+  "hospitalName": "extracted hospital name or null",
+  "reportDate": "extracted date or null",
+  "biomarkers": [
+    {
+      "name": "test name",
+      "value": "numerical result",
+      "unit": "unit",
+      "normalRange": "normal range",
+      "method": "method if available or null"
+    }
+  ]
 }`;
 
     const metadataResult = await model.generateContent([
@@ -59,23 +78,34 @@ Return ONLY this JSON format, no other text:
 
     try {
       const metadataText = metadataResult.response.text().trim();
-      const metadata = JSON.parse(metadataText);
+      console.log("Metadata extraction response:", metadataText);
+
+      // Remove markdown formatting if present (```json ... ```)
+      const cleanedText = metadataText
+        .replace(/^```json\n?/, '')
+        .replace(/\n?```$/, '')
+        .trim();
+
+      const metadata = JSON.parse(cleanedText);
       hospitalName = metadata.hospitalName;
       reportDate = metadata.reportDate;
+      biomarkers = metadata.biomarkers || null;
+      console.log("Extracted metadata - Hospital:", hospitalName, "Date:", reportDate, "Biomarkers count:", biomarkers?.length || 0);
     } catch (parseError) {
-      console.log("Could not parse metadata. Continuing with summary generation.");
+      console.log("Could not parse metadata:", parseError.message);
     }
 
     // Second: Generate summary
     const summaryPrompt = `Please analyze this medical report and provide a SHORT, concise yet easy-to-understand summary. Keep it brief and focused. Follow these guidelines:
 
 1. FIRST: Extract and identify the hospital/diagnostic center name from the report. Use it as the FIRST heading wrapped with XXXX markers (e.g., XXXX Apollo Diagnostics XXXX or XXXX Shri Ram Hospital XXXX)
-2. Then add other section headers using XXXX markers: "Most Important Findings and Diagnoses", "Key Findings and Recommendations"
-3. Break down medical terminology into simple language
-4. Organize information into clear sections as mentioned above
-5. Highlight any critical values or concerns that require immediate attention
-6. Include any recommended follow-up actions or lifestyle changes
-7. Use bullet points for better readability when appropriate
+2. Immediately after the hospital name heading, extract and include the Report Date on the next line in format "Report Date: DD Month YYYY" (e.g., "Report Date: 11 June 2019"). Look for fields like "Sample Received On", "Reported on", "Date of Report" in the image.
+3. Then add other section headers using XXXX markers: "Most Important Findings and Diagnoses", "Key Findings and Recommendations"
+4. Break down medical terminology into simple language
+5. Organize information into clear sections as mentioned above
+6. Highlight any critical values or concerns that require immediate attention
+7. Include any recommended follow-up actions or lifestyle changes
+8. When mentioning test values, include the actual numerical results and reference ranges as shown in the report
 
 Keep the entire response SHORT and CONCISE - aim for 2-3 paragraphs maximum.
 DO NOT USE ANY ASTERISKS (*) OR MARKDOWN SYMBOLS IN RESPONSE - ONLY PLAIN TEXT
@@ -101,6 +131,7 @@ Please ensure the summary is clear, concise, and actionable for someone without 
       summary,
       hospitalName,
       reportDate,
+      biomarkers,
     });
 
     res.status(201).json({
@@ -111,6 +142,7 @@ Please ensure the summary is clear, concise, and actionable for someone without 
       summary: report.summary,
       hospitalName: report.hospitalName,
       reportDate: report.reportDate,
+      biomarkers: report.biomarkers,
       createdAt: report.createdAt,
     });
   } catch (error) {
@@ -134,6 +166,7 @@ const getReportHistory = async (req, res) => {
       summary: report.summary,
       hospitalName: report.hospitalName,
       reportDate: report.reportDate,
+      biomarkers: report.biomarkers,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
     }));

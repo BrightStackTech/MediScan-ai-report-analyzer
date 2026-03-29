@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { SummaryDisplay, cleanSummaryForAudio } from "@/utils/formatSummary";
+import { SummaryDisplay, cleanSummaryForAudio, parseBiomarkersFromSummary } from "@/utils/formatSummary";
 import {
   Volume2,
   StopCircle,
@@ -53,9 +53,10 @@ const ResultsPage = () => {
   const reportDate = (location.state as any)?.reportDate || "";
   const uploadDate = (location.state as any)?.uploadDate || "";
   const status = (location.state as any)?.status || "completed";
-  const biomarkerCount = (location.state as any)?.biomarkerCount || 14;
   const reportId = (location.state as any)?.reportId || "";
   const hospitalName = (location.state as any)?.hospitalName || null;
+  const extractedBiomarkers = (location.state as any)?.biomarkers || null;
+  const biomarkerCount = extractedBiomarkers?.length || 0;
 
   const playAudio = () => {
     if (!summary) {
@@ -106,52 +107,65 @@ const ResultsPage = () => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-IN", {
+
+    let date;
+
+    // Try to parse different date formats
+    // Format: YYYY-MM-DD or ISO format
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
+      date = new Date(dateString);
+    }
+    // Format: DD/MM/YYYY or MM/DD/YYYY (assume DD/MM for Indian locale)
+    else if (dateString.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
+      const [day, month, year] = dateString.split('/');
+      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    // Format: DD-MM-YYYY or MM-DD-YYYY
+    else if (dateString.match(/^\d{1,2}-\d{1,2}-\d{4}/)) {
+      const [day, month, year] = dateString.split('-');
+      date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    // Try default parsing
+    else {
+      date = new Date(dateString);
+    }
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original if parsing fails
+    }
+
+    return date.toLocaleDateString("en-IN", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   };
 
-  // Sample biomarker data with medical icons/emojis
-  const biomarkers = [
-    {
-      category: "❤️ Cardiac Markers",
-      icon: Heart,
-      data: [
-        { name: "Troponin I", value: "0.04", unit: "ng/mL", normal: "< 0.04" },
-        { name: "CK-MB", value: "2.5", unit: "ng/mL", normal: "< 5" },
-        { name: "BNP", value: "45", unit: "pg/mL", normal: "< 100" },
-      ],
-    },
-    {
-      category: "📊 Blood Count",
-      icon: Activity,
-      data: [
-        { name: "WBC", value: "7.2", unit: "K/µL", normal: "4.5-11" },
-        { name: "RBC", value: "4.8", unit: "M/µL", normal: "4.5-5.9" },
-        { name: "Hemoglobin", value: "14.5", unit: "g/dL", normal: "13.5-17.5" },
-      ],
-    },
-    {
-      category: "💧 Kidney Function",
-      icon: Droplets,
-      data: [
-        { name: "Creatinine", value: "0.95", unit: "mg/dL", normal: "0.74-1.35" },
-        { name: "BUN", value: "18", unit: "mg/dL", normal: "7-25" },
-        { name: "GFR", value: "89", unit: "mL/min", normal: "> 60" },
-      ],
-    },
-    {
-      category: "🫁 Respiratory Markers",
-      icon: Wind,
-      data: [
-        { name: "O₂ Saturation", value: "98", unit: "%", normal: "> 95" },
-        { name: "pCO₂", value: "40", unit: "mmHg", normal: "35-45" },
-        { name: "pO₂", value: "95", unit: "mmHg", normal: "80-100" },
-      ],
-    },
-  ];
+  // Parse biomarkers from summary text
+  const parsedBiomarkers = parseBiomarkersFromSummary(summary);
+
+  // Use parsed biomarkers from summary if available, otherwise use extracted ones
+  const displayBiomarkers =
+    parsedBiomarkers.length > 0
+      ? [
+          {
+            category: "📋 Laboratory Results",
+            data: parsedBiomarkers,
+          },
+        ]
+      : extractedBiomarkers
+      ? [
+          {
+            category: "📋 Laboratory Results",
+            data: extractedBiomarkers,
+          },
+        ]
+      : [];
+
+  // Check if summary contains valid data
+  const hasValidSummary =
+    summary && !summary.includes("I apologize, but the image you provided is a generic placeholder");
 
   return (
     <div className="min-h-[calc(100vh-57px)]">
@@ -391,33 +405,36 @@ const ResultsPage = () => {
         )}
 
         {/* Biomarker Tables */}
-        <div className="space-y-6">
-          {biomarkers.map((section, idx) => (
-            <div key={idx} className="glass-morphism rounded-xl p-6">
+        {displayBiomarkers.length > 0 && hasValidSummary && (
+          <div className="space-y-6">
+            {displayBiomarkers.map((section, idx) => (
+              <div key={idx} className="glass-morphism rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-5">{section.category}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10">
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                        Biomarker
+                        Test Name
                       </th>
                       <th className="text-right py-3 px-4 font-medium text-muted-foreground">
-                        Value
+                        Result
                       </th>
                       <th className="text-right py-3 px-4 font-medium text-muted-foreground">
                         Unit
                       </th>
                       <th className="text-right py-3 px-4 font-medium text-muted-foreground">
-                        Normal Range
+                        Reference Range
                       </th>
-                      <th className="text-center py-3 px-4 font-medium text-muted-foreground">
-                        Status
-                      </th>
+                      {section.data.some((item: any) => item.method) && (
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">
+                          Method
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {section.data.map((item, itemIdx) => (
+                    {section.data.map((item: any, itemIdx: number) => (
                       <tr
                         key={itemIdx}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors"
@@ -430,13 +447,13 @@ const ResultsPage = () => {
                           {item.unit}
                         </td>
                         <td className="text-right py-3 px-4 text-muted-foreground">
-                          {item.normal}
+                          {item.normalRange || item.normal || "—"}
                         </td>
-                        <td className="text-center py-3 px-4">
-                          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
-                            ✓ Normal
-                          </span>
-                        </td>
+                        {section.data.some((d: any) => d.method) && (
+                          <td className="text-right py-3 px-4 text-muted-foreground text-xs">
+                            {item.method || "—"}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -444,30 +461,18 @@ const ResultsPage = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Medical Icons/Emojis Legend */}
-        <div className="glass-morphism rounded-xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Analysis Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">❤️</span>
-              <span className="text-sm text-muted-foreground">Cardiac Health</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📊</span>
-              <span className="text-sm text-muted-foreground">Blood Analysis</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">💧</span>
-              <span className="text-sm text-muted-foreground">Kidney Function</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🫁</span>
-              <span className="text-sm text-muted-foreground">Respiratory</span>
-            </div>
           </div>
-        </div>
+        )}
+
+        {/* About Your Results */}
+        {displayBiomarkers.length > 0 && hasValidSummary && (
+          <div className="glass-morphism rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">About Your Results</h2>
+            <p className="text-sm text-muted-foreground">
+              The results shown above are extracted directly from your medical report. Please consult with your healthcare provider for interpretation and medical advice.
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3 justify-center">

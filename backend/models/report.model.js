@@ -27,6 +27,10 @@ const reportSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    biomarkers: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   { timestamps: true }
 );

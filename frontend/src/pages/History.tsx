@@ -290,9 +290,9 @@ const History = () => {
                             reportDate: report.reportDate || null,
                             uploadDate: report.createdAt,
                             status: report.status || "completed",
-                            biomarkerCount: 14,
                             reportId: report._id,
                             hospitalName: report.hospitalName || null,
+                            biomarkers: report.biomarkers || null,
                           }
                         });
                       }}
