@@ -4,8 +4,6 @@ const { uploadToCloudinary } = require("../config/cloudinary");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// @desc    Analyze a medical report image
-// @route   POST /api/reports/analyze
 const analyzeReport = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -15,6 +13,8 @@ const analyzeReport = async (req, res) => {
     // Upload all files to Cloudinary and prepare data
     const imageUrls = [];
     let summary = "";
+    let hospitalName = null;
+    let reportDate = null;
 
     // Process first file for analysis (analyze the primary report)
     const firstFile = req.files[0];
@@ -38,21 +38,17 @@ const analyzeReport = async (req, res) => {
     // Analyze with Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `Please analyze this medical report and provide a comprehensive yet easy-to-understand summary. Follow these guidelines:
+    // First: Extract metadata (hospital name and date)
+    const metadataPrompt = `Extract the following information from this medical report image and return ONLY valid JSON. If information is not found, use null.
 
-1. Start with the most important findings or diagnoses
-2. Break down medical terminology into simple language
-3. Organize information into clear sections: Diagnosis, Key Findings, and Recommendations
-4. Highlight any critical values or concerns that require immediate attention
-5. Include any recommended follow-up actions or lifestyle changes
-6. Use bullet points for better readability when appropriate
-7. Do not use any asterisks or * symbols in the response
+Return ONLY this JSON format, no other text:
+{
+  "hospitalName": "extracted hospital/diagnostic center name or null",
+  "reportDate": "extracted report date in YYYY-MM-DD format or null"
+}`;
 
-DO NOT USE ANY SYMBOL IN RESPONSE NEVER USE ANY * IN RESPONSE ONLY GIVE TEXT IN RESPONSE
-Please ensure the summary is clear, concise, and actionable for someone without medical background.`;
-
-    const result = await model.generateContent([
-      prompt,
+    const metadataResult = await model.generateContent([
+      metadataPrompt,
       {
         inlineData: {
           mimeType,
@@ -61,14 +57,50 @@ Please ensure the summary is clear, concise, and actionable for someone without 
       },
     ]);
 
-    summary = result.response.text();
+    try {
+      const metadataText = metadataResult.response.text().trim();
+      const metadata = JSON.parse(metadataText);
+      hospitalName = metadata.hospitalName;
+      reportDate = metadata.reportDate;
+    } catch (parseError) {
+      console.log("Could not parse metadata. Continuing with summary generation.");
+    }
 
-    // Save report to database with all image URLs
+    // Second: Generate summary
+    const summaryPrompt = `Please analyze this medical report and provide a SHORT, concise yet easy-to-understand summary. Keep it brief and focused. Follow these guidelines:
+
+1. FIRST: Extract and identify the hospital/diagnostic center name from the report. Use it as the FIRST heading wrapped with XXXX markers (e.g., XXXX Apollo Diagnostics XXXX or XXXX Shri Ram Hospital XXXX)
+2. Then add other section headers using XXXX markers: "Most Important Findings and Diagnoses", "Key Findings and Recommendations"
+3. Break down medical terminology into simple language
+4. Organize information into clear sections as mentioned above
+5. Highlight any critical values or concerns that require immediate attention
+6. Include any recommended follow-up actions or lifestyle changes
+7. Use bullet points for better readability when appropriate
+
+Keep the entire response SHORT and CONCISE - aim for 2-3 paragraphs maximum.
+DO NOT USE ANY ASTERISKS (*) OR MARKDOWN SYMBOLS IN RESPONSE - ONLY PLAIN TEXT
+Please ensure the summary is clear, concise, and actionable for someone without medical background.`;
+
+    const summaryResult = await model.generateContent([
+      summaryPrompt,
+      {
+        inlineData: {
+          mimeType,
+          data: base64Image,
+        },
+      },
+    ]);
+
+    summary = summaryResult.response.text();
+
+    // Save report to database with all image URLs and extracted metadata
     const report = await Report.create({
       user: req.user._id,
       imageUrl: imageUrls[0],
       imageUrls: imageUrls,
       summary,
+      hospitalName,
+      reportDate,
     });
 
     res.status(201).json({
@@ -77,6 +109,8 @@ Please ensure the summary is clear, concise, and actionable for someone without 
       imageUrl: report.imageUrl,
       imageUrls: report.imageUrls,
       summary: report.summary,
+      hospitalName: report.hospitalName,
+      reportDate: report.reportDate,
       createdAt: report.createdAt,
     });
   } catch (error) {
@@ -98,6 +132,8 @@ const getReportHistory = async (req, res) => {
       imageUrl: report.imageUrl,
       imageUrls: report.imageUrls && report.imageUrls.length > 0 ? report.imageUrls : [report.imageUrl],
       summary: report.summary,
+      hospitalName: report.hospitalName,
+      reportDate: report.reportDate,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
     }));

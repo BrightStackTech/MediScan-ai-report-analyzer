@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { SummaryDisplay, cleanSummaryForAudio } from "@/utils/formatSummary";
 import {
   Loader2,
   FileText,
@@ -86,7 +87,8 @@ const History = () => {
     window.speechSynthesis.cancel();
     setIsPlaying(true);
     setPlayingId(id);
-    const utterance = new SpeechSynthesisUtterance(text);
+    const cleanText = cleanSummaryForAudio(text);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.onend = () => {
       setIsPlaying(false);
       setPlayingId(null);
@@ -233,13 +235,13 @@ const History = () => {
                           )}
                         </span>
                       </div>
-                      <p
+                      <div
                         className={`text-sm text-muted-foreground leading-relaxed ${
                           isExpanded ? "" : "line-clamp-2"
                         }`}
                       >
-                        {report.summary}
-                      </p>
+                        <SummaryDisplay summary={report.summary} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -290,6 +292,7 @@ const History = () => {
                             status: report.status || "completed",
                             biomarkerCount: 14,
                             reportId: report._id,
+                            hospitalName: report.hospitalName || null,
                           }
                         });
                       }}

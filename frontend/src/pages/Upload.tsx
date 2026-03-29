@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { SummaryDisplay, cleanSummaryForAudio } from "@/utils/formatSummary";
 import {
   Loader2,
   Upload as UploadIcon,
@@ -110,6 +111,7 @@ const UploadPage = () => {
             status: "completed",
             biomarkerCount: res.data.biomarkerCount || 14,
             reportId: res.data.reportId || "",
+            hospitalName: res.data.hospitalName || null,
           }
         });
       }, 500);
@@ -123,7 +125,8 @@ const UploadPage = () => {
   const playAudio = (text: string) => {
     if (isPlaying) return;
     setIsPlaying(true);
-    const utterance = new SpeechSynthesisUtterance(text);
+    const cleanText = cleanSummaryForAudio(text);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.onend = () => setIsPlaying(false);
     window.speechSynthesis.speak(utterance);
   };
@@ -268,9 +271,9 @@ const UploadPage = () => {
               <FileText className="w-5 h-5 text-primary" />
               Analysis Result
             </h2>
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {currentSummary}
-            </p>
+            <div className="text-muted-foreground leading-relaxed mb-4">
+              <SummaryDisplay summary={currentSummary} />
+            </div>
             <div className="flex gap-3 mt-4">
               <Button
                 onClick={() => playAudio(currentSummary)}

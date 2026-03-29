@@ -19,6 +19,14 @@ const reportSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    hospitalName: {
+      type: String,
+      default: null,
+    },
+    reportDate: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

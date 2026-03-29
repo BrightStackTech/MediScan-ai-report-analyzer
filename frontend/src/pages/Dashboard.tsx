@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { SummaryDisplay } from "@/utils/formatSummary";
 import {
   FileText,
   Upload,
@@ -159,9 +160,9 @@ const Dashboard = () => {
                         })}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                      {report.summary}
-                    </p>
+                    <div className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                      <SummaryDisplay summary={report.summary} />
+                    </div>
                   </div>
                 </div>
               </div>

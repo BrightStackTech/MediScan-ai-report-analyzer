@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { SummaryDisplay, cleanSummaryForAudio } from "@/utils/formatSummary";
 import {
   Volume2,
   StopCircle,
@@ -54,6 +55,7 @@ const ResultsPage = () => {
   const status = (location.state as any)?.status || "completed";
   const biomarkerCount = (location.state as any)?.biomarkerCount || 14;
   const reportId = (location.state as any)?.reportId || "";
+  const hospitalName = (location.state as any)?.hospitalName || null;
 
   const playAudio = () => {
     if (!summary) {
@@ -62,7 +64,8 @@ const ResultsPage = () => {
     }
     if (isPlaying) return;
     setIsPlaying(true);
-    const utterance = new SpeechSynthesisUtterance(summary);
+    const cleanSummary = cleanSummaryForAudio(summary);
+    const utterance = new SpeechSynthesisUtterance(cleanSummary);
     utterance.onend = () => setIsPlaying(false);
     window.speechSynthesis.speak(utterance);
   };
@@ -279,6 +282,14 @@ const ResultsPage = () => {
             <div className="flex-1">
               <h2 className="text-lg font-semibold mb-6">Report Information</h2>
               <div className="grid grid-cols-2 gap-6">
+                {/* Hospital Name */}
+                {hospitalName && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Hospital/Clinic</p>
+                    <p className="text-foreground font-medium">{hospitalName}</p>
+                  </div>
+                )}
+
                 {/* Report Date */}
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Report Date</p>
@@ -351,9 +362,7 @@ const ResultsPage = () => {
         {summary && (
           <div className="glass-morphism rounded-xl p-6">
             <div className="space-y-4">
-              <p className="text-foreground leading-relaxed">
-                {summary}
-              </p>
+              <SummaryDisplay summary={summary} />
               <div className="flex gap-3 pt-2">
                 <Button
                   onClick={playAudio}
