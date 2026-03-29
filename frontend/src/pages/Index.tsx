@@ -78,7 +78,9 @@ const Index = () => {
                 }`} />
               </Button>
               <Button
-                onClick={() => navigate("/features")}
+                onClick={() => {
+                  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                }}
                 size="lg"
                 variant="outline"
                 className="group hover:bg-primary/5"
@@ -116,7 +118,7 @@ const Index = () => {
         </div>
 
         {/* Features Section */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-12" id="features">
           <h2 className="text-3xl font-bold mb-4 text-gradient">Powerful Features</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Experience the future of medical report understanding with our comprehensive feature set
