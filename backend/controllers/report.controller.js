@@ -114,8 +114,16 @@ CRITICAL: Extract EVERY row from the table. Do NOT skip or filter any tests. Inc
 
 5. ONLY IF NO NUMBERS FOUND: If the report contains NO numerical data, then just write a brief text summary without numbers.
 
-6. LENGTH: Keep to 2-3 short paragraphs maximum
-7. FORMAT: NO ASTERISKS, NO MARKDOWN - plain text only
+6. KEY FINDINGS AND RECOMMENDATIONS SECTION MUST INCLUDE:
+   - Predicted diagnosis or suspected conditions based on the findings
+   - Practical suggestions and recommendations for patient management
+   - Lifestyle modifications if applicable
+   - Further evaluation or tests recommended
+   - When to seek immediate medical attention (if applicable)
+   - Follow-up timeline
+
+7. LENGTH: Keep to 3-4 short paragraphs maximum
+8. FORMAT: NO ASTERISKS, NO MARKDOWN - plain text only
 
 EXAMPLE OUTPUT:
 XXXX Apollo Hospital XXXX
@@ -125,7 +133,7 @@ XXXX Most Important Findings and Diagnoses XXXX
 The patient shows severe anemia with Hemoglobin at 8.5 g/dL (normal: 12.0-16.0 g/dL). Red blood cell count is 3.81 millions/cumm (normal: 4.1-5.5 millions/cumm). Platelet count is elevated at 6,16,000 lakhs/cumm (normal: 1.5-4.5 lakhs/cumm).
 
 XXXX Key Findings and Recommendations XXXX
-Further evaluation is recommended...`;
+Based on the findings, the patient is likely diagnosed with severe iron-deficiency anemia with possible nutritional deficiencies. The significantly low hemoglobin and red blood cell count indicate the body is not producing enough healthy red blood cells. Recommended actions include starting iron supplementation under medical supervision, consuming iron-rich foods (spinach, liver, fortified cereals), and avoiding substances that inhibit iron absorption. Further evaluation is recommended including iron studies (serum ferritin, iron saturation), vitamin B12 and folate levels, and reticulocyte count to assess bone marrow response. Follow-up blood work should be scheduled in 4-6 weeks to monitor response to treatment. Seek immediate medical attention if experiencing severe shortness of breath, chest pain, or persistent dizziness.`;
 
     const summaryResult = await model.generateContent([
       summaryPrompt,

@@ -3,6 +3,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Stethoscope,
   LayoutDashboard,
   FileText,
@@ -24,11 +33,17 @@ const Navbar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     navigate("/login");
     setSidebarOpen(false);
+    setShowLogoutConfirm(false);
   };
 
   const handleNavigate = (path: string) => {
@@ -198,6 +213,27 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign Out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to sign out?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-3 justify-end">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmLogout}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Yes, Sign Out
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
